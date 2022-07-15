@@ -57,5 +57,6 @@ public class Line3D extends Shape3D {
         g2d.setPaint(this.getColor());
         g2d.setStroke(new BasicStroke((float) Math.abs(stroke)));
         g2d.draw(new Line2D.Double(this.first.getX(),this.first.getY(),this.second.getX(),this.second.getY()));
+        //System.out.println(this.first.getZ()/1000);
     }
 }

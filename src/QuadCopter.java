@@ -1,3 +1,8 @@
+import java.awt.*;
+import java.awt.geom.Point2D;
+import java.util.LinkedList;
+import java.util.List;
+
 public class QuadCopter {
     private Point3D position;
     private Point3D velocity;
@@ -6,14 +11,9 @@ public class QuadCopter {
     private Point3D angleVelocity;
     private Point3D torque;
 
-    private Propeller firstPropeller;
-    private Propeller secondPropeller;
-    private Propeller thirdPropeller;
-    private Propeller forthPropeller;
+    public List<Propeller> propellers = new LinkedList<>();
 
     private final double mass;
-    private final double lRoll;
-    private final double lPitch;
     private final double trustToMoment;
 
     private final Matrix.m4x4 inertia;
@@ -21,21 +21,13 @@ public class QuadCopter {
 
     private final SimulationEnvironment simulationEnvironment;
 
-    public QuadCopter(double mass, double lRoll, double lPitch, double trustToMoment, Matrix.m4x4 inertia, Propeller firstPropeller, Propeller secondPropeller, Propeller thirdPropeller, Propeller forthPropeller, SimulationEnvironment simulationEnvironment) {
+    Object3D copterObject;
+
+    public QuadCopter(double mass, double trustToMoment, Matrix.m4x4 inertia, SimulationEnvironment simulationEnvironment) {
         this.mass = mass;
-        this.lRoll = lRoll;
-        this.lPitch = lPitch;
         this.trustToMoment = trustToMoment;
         this.inertia = inertia;
         this.inertiaInv = inertia.inverse();
-        this.firstPropeller = firstPropeller;
-        this.secondPropeller = secondPropeller;
-        this.thirdPropeller = thirdPropeller;
-        this.forthPropeller = forthPropeller;
-        this.firstPropeller.setPosition(new Point3D(lPitch,0.0f,lRoll));
-        this.secondPropeller.setPosition(new Point3D(lPitch,0.0f,-lRoll));
-        this.thirdPropeller.setPosition(new Point3D(-lPitch,0.0f,-lRoll));
-        this.forthPropeller.setPosition(new Point3D(-lPitch,0.0f,lRoll));
         this.simulationEnvironment = simulationEnvironment;
 
         position = new Point3D();
@@ -44,6 +36,7 @@ public class QuadCopter {
         angle = new Quaternion(1,0,0,0);
         angleVelocity = new Point3D();
         torque = new Point3D();
+        copterObject = new ReaderOBJ("copter2.obj").getObject();
     }
 
     void updateIntegration() {
@@ -55,26 +48,39 @@ public class QuadCopter {
     }
 
     void calculateForces() {
-
-        acceleration = simulationEnvironment.getGravityForce().multiply(mass)
+        Point3D propForce = new Point3D();
+        for (Propeller propeller : propellers) {
+            propForce = propForce.add(propeller.getForce().multiply(propeller.getThrust()));
+        }
+        Point3D propMoment = new Point3D();
+        for (Propeller propeller : propellers) {
+            propMoment = propMoment.add(propeller.getForce().multiply(propeller.getThrust()*trustToMoment*propeller.getDirection()));
+        }
+        acceleration=  simulationEnvironment.getGravityForce().multiply(mass)
                 .subtract(velocity.multiply(simulationEnvironment.getForceFriction()))
-                .subtract(Utils.quaternionRotation(angle).multiply(
-                        new Point3D(
-                                0,
-                                firstPropeller.getThrust() + secondPropeller.getThrust() + thirdPropeller.getThrust() + forthPropeller.getThrust(),
-                                0
-                        )))
-                .multiply(1/mass);
+                .subtract(Utils.quaternionRotation(angle).multiply(propForce)).multiply(1/mass);
 
-        torque = inertiaInv.multiply(new Point3D(
-                lRoll*(firstPropeller.getThrust() - secondPropeller.getThrust() - thirdPropeller.getThrust() + forthPropeller.getThrust()),
-                trustToMoment*(-firstPropeller.getThrust() + secondPropeller.getThrust() - thirdPropeller.getThrust() + forthPropeller.getThrust()),
-                lPitch*(-firstPropeller.getThrust() - secondPropeller.getThrust() + thirdPropeller.getThrust() + forthPropeller.getThrust())
-                )
+        Point3D moment = new Point3D(0,0,0);
+        for (Propeller propeller : propellers) {
+            Point3D pos = propeller.getPosition().cross(propeller.getForce().multiply(propeller.getThrust()));
+            moment = new Point3D(moment.getX()-pos.getX(),moment.getY()-pos.getY(),moment.getZ()-pos.getZ());
+        }
+        moment = moment.add(propMoment);
+
+        this.torque = inertiaInv.multiply(moment
                 .subtract(angleVelocity.multiply(simulationEnvironment.getMomentFriction()))
                 .subtract(angleVelocity.cross(inertia.multiply(angleVelocity))));
-}
+    }
+    public Object3D getCopterObject() {
+        return copterObject;
+    }
 
+    void rotationCopterObject(Matrix.m4x4 rotation) {
+         copterObject.setRotation(rotation);
+    }
+    void positionCopterObject(Point3D position) {
+        copterObject.setPosition(position);
+    }
     public Point3D getPosition() {
         return position;
     }
@@ -120,40 +126,55 @@ public class QuadCopter {
         this.angle = angle;
     }
 
-    public Propeller getFirstPropeller() {
-        return firstPropeller;
-    }
-
-    public Propeller getSecondPropeller() {
-        return secondPropeller;
-    }
-
-    public Propeller getThirdPropeller() {
-        return thirdPropeller;
-    }
-
-    public Propeller getForthPropeller() {
-        return forthPropeller;
-    }
-
     public static class Propeller {
         private double thrust = 0;
         private double speed = 0;
         private double angle = 0;
+        private double maxSpeed;
+        private int direction;
         private SimulationEnvironment se;
         private Point3D position;
+        private Point3D force;
+        private Point3D moment;
+        private Object3D propeller3D;
+        private Line3D[] line3D;
+        private Object3D stick;
 
         public void setPosition(Point3D position) {
             this.position = position;
         }
-
-        Propeller(Point3D position, SimulationEnvironment se) {
-            this.position = position;
-            this.se = se;
+        void rotationPropeller3D(Matrix.m4x4 rotation) {
+            propeller3D.setRotation(rotation);
         }
-        Propeller(SimulationEnvironment se) {
-            position = new Point3D();
+        void positionPropeller3D(Point3D position) {
+            propeller3D.setPosition(position);
+        }
+
+        Propeller(Point3D position, Point3D force, boolean direction, double maxSpeed, SimulationEnvironment se) {
+            this.position = position;
+            this.force = force.normalise();
             this.se = se;
+            this.direction = (direction? -1 : 1);
+            this.maxSpeed = maxSpeed;
+            //this.moment = position.cross(force).multiply(this.direction);
+            this.propeller3D = new ReaderOBJ("propeller.obj").getObject();
+            propeller3D.setRotation(Utils.quaternionRotation(Utils.normalToQuaternion(force)));
+            line3D = new Line3D[21];
+            for (int i =0; i <= 20; i++) {
+                line3D[i] = new Line3D(new Point3D(),new Point3D(),new Color(90,90,90),10);
+            }
+            stick = new Object3D(line3D);
+        }
+
+        public void updateStick(Point3D start, Point3D end) {
+            line3D = new Line3D[21];
+            for (int i =0; i <= 20; i++) {
+                line3D[i] = new Line3D(start.add(end.multiply(i/20.)),start.add(end.multiply((i+1)/20.)),new Color(90,90,90),10);
+            }
+            stick.setFaces(line3D);
+        }
+        public Object3D getObjectStick() {
+            return stick;
         }
 
         public double getThrust() {
@@ -165,8 +186,8 @@ public class QuadCopter {
         }
 
         public void updateThrust() {
-            thrust += (speed-thrust)*0.99f*se.getDeltaTime();
-            angle += 200*thrust*se.getDeltaTime();
+            thrust += Math.max(Math.min((speed-thrust)*0.99f*se.getDeltaTime(),maxSpeed),-maxSpeed);
+            angle += 200*thrust*se.getDeltaTime()*Math.signum(direction);
         }
 
         public double getAngle() {
@@ -175,6 +196,26 @@ public class QuadCopter {
 
         public Point3D getPosition() {
             return position;
+        }
+
+        public Point3D getForce() {
+            return force;
+        }
+
+        public Point3D getMoment() {
+            return moment;
+        }
+
+        public Object3D getPropeller3D() {
+            return propeller3D;
+        }
+
+        public double[][] getRotation() {
+            return propeller3D.getRotation().getMatrixArray();
+        }
+
+        public int getDirection() {
+            return direction;
         }
     }
 }

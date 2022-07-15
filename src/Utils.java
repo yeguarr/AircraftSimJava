@@ -91,25 +91,13 @@ public class Utils {
                 Math.toDegrees(Math.asin(2*(q0*q2-q3*q1))),
                 Math.toDegrees(Math.atan2(2*(q0*q3+q1*q2),1-2*(q2*q2+q3*q3)))
         );
-/*
-        // roll (x-axis rotation)
-        double sinr_cosp = 2 * (q0 * q1 + q2 * q3);
-        double cosr_cosp = 1 - 2 * (q1 * q1 + q2 * q2);
-        double roll = Math.toDegrees(Math.atan2(sinr_cosp, cosr_cosp));
+    }
 
-        // pitch (y-axis rotation)
-        double sinp = 2 * (q0 * q2 - q3 * q1);
-        double pitch;
-        if (Math.abs(sinp) >= 0.99)
-            pitch = Math.copySign(90, sinp); // use 90 degrees if out of range
-        else
-            pitch = Math.toDegrees(Math.asin(sinp));
-
-        // yaw (z-axis rotation)
-        double siny_cosp = 2 * (q0 * q3 + q1 * q2);
-        double cosy_cosp = 1 - 2 * (q2 * q2 + q3 * q3);
-        double yaw = Math.toDegrees(Math.atan2(siny_cosp, cosy_cosp));
-
-        return new Point3D(roll, pitch, yaw);*/
+    public static Quaternion normalToQuaternion(Point3D normal) {
+        Point3D v1 = new Point3D(0,1, 0);
+        Point3D v2 = normal;
+        Point3D a = v1.cross(v2);
+        Quaternion q = new Quaternion(Math.sqrt((v1.length()*v1.length()) * (v2.length()*v2.length())) + v1.dot(v2),a).normalise();
+        return q;
     }
 }
