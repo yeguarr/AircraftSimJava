@@ -43,6 +43,13 @@ public class Updater implements ActionListener {
         }
     }
 
+    public void doTasks() {
+        for (Task task : tasks) {
+            task.doTask();
+        }
+    }
+
+
     public int getFrames() {
         return frames;
     }

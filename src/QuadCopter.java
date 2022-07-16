@@ -135,7 +135,6 @@ public class QuadCopter {
         private SimulationEnvironment se;
         private Point3D position;
         private Point3D force;
-        private Point3D moment;
         private Object3D propeller3D;
         private Line3D[] line3D;
         private Object3D stick;
@@ -202,10 +201,6 @@ public class QuadCopter {
             return force;
         }
 
-        public Point3D getMoment() {
-            return moment;
-        }
-
         public Object3D getPropeller3D() {
             return propeller3D;
         }
@@ -216,6 +211,14 @@ public class QuadCopter {
 
         public int getDirection() {
             return direction;
+        }
+
+        public void setForce(Point3D force) {
+            this.force = force.normalise();
+        }
+
+        public void setPositrion(Point3D position) {
+            this.position = position;
         }
     }
 }
