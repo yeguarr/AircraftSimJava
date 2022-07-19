@@ -1,17 +1,17 @@
 import java.awt.*;
-import java.awt.geom.Point2D;
 import java.util.LinkedList;
 import java.util.List;
 
-public class QuadCopter {
+public class AircraftBase {
     private Point3D position;
     private Point3D velocity;
     private Point3D acceleration;
     private Quaternion angle;
     private Point3D angleVelocity;
     private Point3D torque;
+    private Point3D centre;
 
-    public List<Propeller> propellers = new LinkedList<>();
+    private List<Propeller> propellers = new LinkedList<>();
 
     private final double mass;
     private final double trustToMoment;
@@ -21,9 +21,9 @@ public class QuadCopter {
 
     private final SimulationEnvironment simulationEnvironment;
 
-    Object3D copterObject;
+    private Object3D copterObject;
 
-    public QuadCopter(double mass, double trustToMoment, Matrix.m4x4 inertia, SimulationEnvironment simulationEnvironment) {
+    public AircraftBase(double mass, double trustToMoment, Matrix.m4x4 inertia, SimulationEnvironment simulationEnvironment) {
         this.mass = mass;
         this.trustToMoment = trustToMoment;
         this.inertia = inertia;
@@ -37,6 +37,7 @@ public class QuadCopter {
         angleVelocity = new Point3D();
         torque = new Point3D();
         copterObject = new ReaderOBJ("copter2.obj").getObject();
+        centre=new Point3D();
     }
 
     void updateIntegration() {
@@ -56,13 +57,13 @@ public class QuadCopter {
         for (Propeller propeller : propellers) {
             propMoment = propMoment.add(propeller.getForce().multiply(propeller.getThrust()*trustToMoment*propeller.getDirection()));
         }
-        acceleration=  simulationEnvironment.getGravityForce().multiply(mass)
+        acceleration =  simulationEnvironment.getGravityForce().multiply(mass)
                 .subtract(velocity.multiply(simulationEnvironment.getForceFriction()))
                 .subtract(Utils.quaternionRotation(angle).multiply(propForce)).multiply(1/mass);
 
         Point3D moment = new Point3D(0,0,0);
         for (Propeller propeller : propellers) {
-            Point3D pos = propeller.getPosition().cross(propeller.getForce().multiply(propeller.getThrust()));
+            Point3D pos = (propeller.getPosition().subtract(centre)).cross(propeller.getForce().multiply(propeller.getThrust()));
             moment = new Point3D(moment.getX()-pos.getX(),moment.getY()-pos.getY(),moment.getZ()-pos.getZ());
         }
         moment = moment.add(propMoment);
@@ -71,18 +72,50 @@ public class QuadCopter {
                 .subtract(angleVelocity.multiply(simulationEnvironment.getMomentFriction()))
                 .subtract(angleVelocity.cross(inertia.multiply(angleVelocity))));
     }
+
     public Object3D getCopterObject() {
         return copterObject;
+    }
+
+    public List<Propeller> getPropellers() {
+        return propellers;
+    }
+
+    public void addPropeller(Propeller propeller) {
+        propellers.add(propeller);
+        double massDiv = mass;
+        Point3D centre = new Point3D();
+        for(Propeller prop : propellers) {
+            centre = centre.add(prop.getPosition().multiply(prop.getMass()));
+            massDiv += prop.getMass();
+        }
+        this.centre = centre.multiply(1/massDiv);
     }
 
     void rotationCopterObject(Matrix.m4x4 rotation) {
          copterObject.setRotation(rotation);
     }
+
+    void updateObject() {
+        rotationCopterObject(Utils.quaternionRotation(getAngle()));
+        positionCopterObject(getPosition());
+    }
+    void updateObjectAndPropellers() {
+        updateObject();
+        for (Propeller propeller : getPropellers()) {
+            propeller.updatePropellerFull(this);
+        }
+    }
+
     void positionCopterObject(Point3D position) {
         copterObject.setPosition(position);
     }
     public Point3D getPosition() {
         return position;
+    }
+
+    public Point3D getCentre() {
+        return centre;
     }
 
     public Quaternion getAngle() {
@@ -138,6 +171,8 @@ public class QuadCopter {
         private Object3D propeller3D;
         private Line3D[] line3D;
         private Object3D stick;
+        private double speedSlow;
+        private double mass;
 
         public void setPosition(Point3D position) {
             this.position = position;
@@ -149,14 +184,14 @@ public class QuadCopter {
             propeller3D.setPosition(position);
         }
 
-        Propeller(Point3D position, Point3D force, boolean direction, double maxSpeed, SimulationEnvironment se) {
+        Propeller(double mass, Point3D position, Point3D force, boolean direction, double maxSpeed,String objFile, SimulationEnvironment se) {
+            this.mass = mass;
             this.position = position;
             this.force = force.normalise();
             this.se = se;
             this.direction = (direction? -1 : 1);
             this.maxSpeed = maxSpeed;
-            //this.moment = position.cross(force).multiply(this.direction);
-            this.propeller3D = new ReaderOBJ("propeller.obj").getObject();
+            this.propeller3D = new ReaderOBJ(objFile).getObject();
             propeller3D.setRotation(Utils.quaternionRotation(Utils.normalToQuaternion(force)));
             line3D = new Line3D[21];
             for (int i =0; i <= 20; i++) {
@@ -185,8 +220,9 @@ public class QuadCopter {
         }
 
         public void updateThrust() {
-            thrust += Math.max(Math.min((speed-thrust)*0.99f*se.getDeltaTime(),maxSpeed),-maxSpeed);
-            angle += 200*thrust*se.getDeltaTime()*Math.signum(direction);
+            speedSlow += Math.max(Math.min((speed-speedSlow)*0.9*se.getDeltaTime(),maxSpeed),-maxSpeed);
+            thrust = speedSlow*speedSlow*(speedSlow>0?1:-1)*0.1;
+            angle += 200*speedSlow*se.getDeltaTime()*(direction);
         }
 
         public double getAngle() {
@@ -213,12 +249,19 @@ public class QuadCopter {
             return direction;
         }
 
+        public double getMass() {
+            return mass;
+        }
+
         public void setForce(Point3D force) {
             this.force = force.normalise();
         }
 
-        public void setPositrion(Point3D position) {
-            this.position = position;
+        public void updatePropellerFull(AircraftBase copter) {
+            this.rotationPropeller3D(Utils.quaternionRotation(copter.getAngle()).multiply(Utils.quaternionRotation(Utils.normalToQuaternion(this.getForce()))).multiply(Utils.rotate(new Point3D(0, -this.getAngle(), 0))));
+            Point3D temp = Utils.quaternionRotation(copter.getAngle()).multiply(this.getPosition());
+            this.positionPropeller3D(copter.getPosition().add(temp));
+            this.updateStick(copter.getPosition(),temp);
         }
     }
 }

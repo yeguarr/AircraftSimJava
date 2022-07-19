@@ -86,11 +86,41 @@ public class Utils {
         double q1 = quaternion.getX();
         double q2 = quaternion.getY();
         double q3 = quaternion.getZ();
-        return new Point3D(
-                Math.toDegrees(Math.atan2(2*(q0*q1+q2*q3),1-2*(q1*q1+q2*q2))),
-                Math.toDegrees(Math.asin(2*(q0*q2-q3*q1))),
-                Math.toDegrees(Math.atan2(2*(q0*q3+q1*q2),1-2*(q2*q2+q3*q3)))
-        );
+        double roll = 0;
+        double pitch = 0;
+        double yaw = 0;
+
+        // roll (x-axis rotation)
+        double sinr_cosp = 2 * (q0 * q1 + q2 * q3);
+        double cosr_cosp = 1 - 2 * (q1 * q1 + q2 * q2);
+        roll = Math.toDegrees(Math.atan2(sinr_cosp, cosr_cosp));
+
+        // pitch (y-axis rotation)
+        double sinp = 2 * (q0 * q2 - q3 * q1);
+        if (Math.abs(sinp) >= 1)
+            pitch = Math.toDegrees(Math.PI / 2 * Math.signum(sinp));
+        else
+            pitch = Math.toDegrees(Math.asin(sinp));
+
+        // yaw (z-axis rotation)
+        double siny_cosp = 2 * (q0 * q3 + q1 * q2);
+        double cosy_cosp = 1 - 2 * (q2 * q2 + q3 * q3);
+        yaw = Math.toDegrees(Math.atan2(siny_cosp, cosy_cosp));
+
+        return new Point3D(roll,pitch,yaw);
+    }
+
+    public static Point3D getNormalVectorToPoint(Point3D pos) {
+        return Utils.quaternionRotation(getQuaternionToPoint(pos)).multiply(new Point3D(0,1,0));
+    }
+
+    public static Quaternion getQuaternionToPoint(Point3D pos) {
+        Point3D p1 = new Point3D(0,1,0);
+
+        Point3D n = p1.cross(pos).normalise();
+        double theta = Math.atan2(p1.cross(pos).length(),p1.dot(pos));
+
+        return new Quaternion(Math.cos(theta/2),n.multiply(Math.sin(theta/2)));
     }
 
     public static Quaternion normalToQuaternion(Point3D normal) {
