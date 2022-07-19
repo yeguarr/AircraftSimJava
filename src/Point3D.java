@@ -77,7 +77,8 @@ public class Point3D {
     }
 
     public double length() {
-        return Math.sqrt(this.dot(this));
+        double sq = Math.sqrt(this.dot(this));
+        return Double.isNaN(sq)? 0:sq;
     }
 
     @Override

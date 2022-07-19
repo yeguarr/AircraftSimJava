@@ -69,6 +69,7 @@ public class Viewer3D extends JComponent {
                 }
             }
         }
+
         Collections.sort(drawShapes);
         repaint();
     }

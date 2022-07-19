@@ -8,8 +8,8 @@ public class SimulationEnvironment {
         gravityForce = new Point3D(0,9.81f, 0);
         //gravityForce = new Point3D(0,0,0);
         deltaTime = 0.01;
-        forceFriction = 0.1;
-        momentFriction = 0.1;
+        forceFriction = 0.3;
+        momentFriction = 0.3;
     }
 
     public SimulationEnvironment(Point3D gravityForce, double deltaTime, double forceFriction, double momentFriction) {

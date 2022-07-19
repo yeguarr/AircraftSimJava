@@ -1,4 +1,26 @@
 public class Matrix {
+    static public class m3x1 {
+        private final double a, b, c;
+
+        public double getA() {
+            return a;
+        }
+
+        public double getB() {
+            return b;
+        }
+
+        public double getC() {
+            return c;
+        }
+
+        public m3x1(double a, double b, double c) {
+            this.a = a;
+            this.b = b;
+            this.c = c;
+        }
+    }
+
     static public class m4x1 {
         private final double a, b, c, d;
 
@@ -25,6 +47,70 @@ public class Matrix {
             this.d = d;
         }
     }
+    static public class m3x3 {
+
+        private final double
+                aa, ab, ac,
+                ba, bb, bc,
+                ca, cb, cc;
+
+        public m3x3(double aa, double ab, double ac, double ba, double bb, double bc, double ca, double cb, double cc) {
+            this.aa = aa;
+            this.ab = ab;
+            this.ac = ac;
+            this.ba = ba;
+            this.bb = bb;
+            this.bc = bc;
+            this.ca = ca;
+            this.cb = cb;
+            this.cc = cc;
+        }
+        public m3x3(m3x3 matrix) {
+            this.aa = matrix.aa;
+            this.ab = matrix.ab;
+            this.ac = matrix.ac;
+            this.ba = matrix.ba;
+            this.bb = matrix.bb;
+            this.bc = matrix.bc;
+            this.ca = matrix.ca;
+            this.cb = matrix.cb;
+            this.cc = matrix.cc;
+        }
+        //aa, ab, ac,
+        //ba, bb, bc,
+        //ca, cb, cc;
+        public double[][] getMatrixArray() {
+            return new double[][]{
+                    {aa, ab, ac},
+                    {ba, bb, bc},
+                    {ca, cb, cc}};
+        }
+
+        public m3x3 multiply(m3x3 second) {
+            return new m3x3(
+                    this.aa*second.aa + this.ab*second.ba + this.ac*second.ca,
+                    this.aa*second.ab + this.ab*second.bb + this.ac*second.cb,
+                    this.aa*second.ac + this.ab*second.bc + this.ac*second.cc,
+
+                    this.ba*second.aa + this.bb*second.ba + this.bc*second.ca,
+                    this.ba*second.ab + this.bb*second.bb + this.bc*second.cb,
+                    this.ba*second.ac + this.bb*second.bc + this.bc*second.cc,
+
+                    this.ca*second.aa + this.cb*second.ba + this.cc*second.ca,
+                    this.ca*second.ab + this.cb*second.bb + this.cc*second.cb,
+                    this.ca*second.ac + this.cb*second.bc + this.cc*second.cc
+            );
+        }
+
+        public m3x1 multiply(m3x1 vector) {
+            return new m3x1(
+                    this.aa*vector.a + this.ab*vector.b + this.ac*vector.c,
+                    this.ba*vector.a + this.bb*vector.b + this.bc*vector.c,
+                    this.ca*vector.a + this.cb*vector.b + this.cc*vector.c
+            );
+        }
+    }
+
     static public class m4x4 {
         private final double
                 aa, ab, ac, ad,
