@@ -1,7 +1,11 @@
+import com.sun.scenario.effect.impl.prism.ps.PPSBlend_ADDPeer;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
+import java.nio.channels.Pipe;
+import java.security.cert.X509Certificate;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class MainFrame extends JFrame {
@@ -51,6 +55,7 @@ public class MainFrame extends JFrame {
         //создаем сам коптер
         Matrix.m4x4 J = new Matrix.m4x4(0.64,0 ,0, 0, 0, 0.64, 0, 0, 0,0, 1.2,0, 0, 0 ,0 ,1 );
         AircraftBase copter = new AircraftBase(3,0.1, J, simulationEnvironment);
+        //AircraftBase copter2 = new AircraftBase(3,0.1, J, simulationEnvironment);
         //добавляем пропеллеры на коптер
         copter.addPropeller(m1);
         copter.addPropeller(m2);
@@ -77,110 +82,54 @@ public class MainFrame extends JFrame {
         viewer3D.addObject3D(lineTracer.getLinesObject());
 
         ///////////////////////// CONTROLLER
-        PID pid1 = new PID(0.8,0.4,2, simulationEnvironment);
-        PID pid2 = new PID(0.1,0.3,4, simulationEnvironment);
-        PID pid3 = new PID(0.1,0.3,4, simulationEnvironment);
-        PID pid4 = new PID(0.1,0.3,8, simulationEnvironment);
+        PID pid1 = new PID(0.5,0,1, simulationEnvironment);
+        PID pid2 = new PID(0.5,0,1, simulationEnvironment);
+        PID pid3 = new PID(0.5,0,1, simulationEnvironment);
+        PID pid4 = new PID(3,0,0, simulationEnvironment);
+        QuaternionPID qPID = new QuaternionPID(1,0,0,simulationEnvironment);
+
+
+        copter.setAngle(Utils.eulerAnglesToQuaternion(new Point3D(0,0,0)));
 
         AtomicReference<Double> pitch = new AtomicReference<>(0.);
-
-        // странный баг если Point3D(0,90,0) java.lang.IllegalArgumentException: Comparison method violates its general contract!
-        copter.setAngle(Utils.eulerAnglesToQuaternion(new Point3D(0,90,0)));
-
-
-        //Point3D refPosition = new Point3D(10,5,10);
-
-        Object3D lineArrowObject = new Object3D();
-        viewer3D.addObject3D(lineArrowObject);
-
+        AtomicReference<Quaternion> quaternion = new AtomicReference<>(Utils.eulerAnglesToQuaternion(new Point3D(0,0,0)));
 
         updater.addTask( () -> {
-            /*if (pitch.get()>1)
-                pitch.set(-1.);
-            pitch.updateAndGet(v -> (v + 0.0005));*/
-            /*Point3D refPosition;
-            if (pitch.get()<30)
-                refPosition = new Point3D(10*Math.cos(pitch.get()),0,10*Math.sin(pitch.get()));
-            else if (pitch.get()<50)
-                refPosition = new Point3D(10*Math.cos(pitch.get())+40,0,10*Math.sin(pitch.get()));
-            else
-                refPosition = new Point3D(10*Math.cos(pitch.get())+20,0,20+20*Math.sin(pitch.get()));*/
+            quaternion.updateAndGet(q -> (q.multiply(Utils.eulerAnglesToQuaternion(new Point3D(0,0.1,0)))));
+            Quaternion rotated = quaternion.get().multiply(Utils.eulerAnglesToQuaternion(new Point3D(78,0,32)).conjugate());
+            //System.out.println(rotated.getX()+ " "+rotated.getY() + " " + rotated.getZ()+" "+rotated.getW());
+
+        });
+
+        updater.addTask( () -> {
+            if (pitch.get()<360)
+                pitch.updateAndGet(v->(v+0.05));
+            Point3D eulerAngle = Utils.quaternionToEulerAngles(copter.getAngle());
+            Quaternion angle = copter.getAngle().multiply(Utils.eulerAnglesToQuaternion(new Point3D(0,pitch.get(),0)).conjugate());
+            //System.out.println(angle);
+            //System.out.println(copter.getAngle());
+
+            double anglePitch = Math.acos(angle.getW())*2;
+            Point3D neededPosition = new Point3D();
+            double neededAngle =0;// pitch.get();
 
 
-            //Point3D refPosition = new Point3D(10*Math.cos(pitch.get()),10,10*Math.sin(pitch.get()));
-            //Point3D refPosition = copter.getPosition().scale(1,0,1);
-            //refPosition = Utils.rotate(new Point3D(0,copter.getAngle().getY(),0)).multiply(refPosition);
-
-            Point3D refPosition = new Point3D(-20,100,0);
-            OBJRef.setPosition(refPosition.scale(-1,0,-1));
-
-            Point3D angle = Utils.quaternionToEulerAngles(copter.getAngle());
-            Quaternion quaternionAngleXZ = Utils.eulerAnglesToQuaternion( new Point3D(0,90,0));
-            //System.out.println(angle.getY());
-
-            //System.out.println( "1) "+ refPosition.add(Utils.rotY(0).multiply(copter.getPosition())));
-            //System.out.println( "2) "+ refPosition.add(copter.getPosition()));
-
-            //System.out.println("1) "+ copter.getAngle());
-            //System.out.println("2) "+ Utils.eulerAnglesToQuaternion(angle));
-            //System.out.println(Utils.quaternionToEulerAngles(copter.getAngle().multiply(quatY)));
-
-            /*Point3D refAngle = new Point3D(
-                    Math.min(5, Math.hypot(refPosition.getX()-copter.getPosition().getX(),-refPosition.getZ()+copter.getPosition().getZ()))
-                            *(Math.cos(Math.atan2(refPosition.getX()-copter.getPosition().getX(),-refPosition.getZ()+copter.getPosition().getZ()))),
-                    pitch.get(),
-                    Math.min(5,Math.hypot(refPosition.getX()-copter.getPosition().getX(),-refPosition.getZ()+copter.getPosition().getZ()))
-                            *(Math.sin(Math.atan2(refPosition.getX()-copter.getPosition().getX(),-refPosition.getZ()+copter.getPosition().getZ())))
-            );*/
+            double err1 = pid1.calculateControl(-copter.getPosition().getY(),0);
+            double err2 = pid2.calculateControl(0,0);
+            double err3 = pid3.calculateControl(0,0);
+            double err4 = pid4.calculateControl(anglePitch,0);
+            Point3D qerr =qPID.calculateControl(copter.getAngle(),Utils.eulerAnglesToQuaternion(new Point3D(0,pitch.get(),0)));
 
 
-            lineArrowObject.setFaces(new Line3D[]{new Line3D(copter.getPosition(),Utils.getNormalVectorToPoint(refPosition))});
+            Quaternion e = angle.normalise().multiply(2*Math.atan2(angle.getVector().length(),angle.getW()));
+            System.out.println(e.getX()+ " "+e.getY() + " " + e.getZ()+" "+e.getW()+" "+pitch.get());
 
-            //System.out.println((copter.getAngle()));
-            //System.out.println(Utils.getNormalVectorToPoint(refPosition));
-
-            //OBJRef.setPosition(Utils.getNormalVectorToPoint(refPosition).multiply(3).add(copter.getPosition()));
-            Quaternion angleRotated = Utils.eulerAnglesToQuaternion(new Point3D(0,90,0)).multiply(copter.getAngle()).multiply(Utils.eulerAnglesToQuaternion(new Point3D(0,90,0)).conjugate());
-            Quaternion errorRotationOther = Utils.getQuaternionToPoint( refPosition.add(Utils.rotY(90).multiply(copter.getPosition())) ).multiply(angleRotated.conjugate());
-
-            Point3D value1 = Utils.quaternionToEulerAngles(copter.getAngle());
-            Point3D value2 = Utils.quaternionToEulerAngles(Utils.eulerAnglesToQuaternion(new Point3D(0,90,0)).multiply(copter.getAngle()).multiply(Utils.eulerAnglesToQuaternion(new Point3D(-180,0,-180))));
-            //Point3D value = Utils.quaternionToEulerAngles(copter.getAngle());
-            /*System.out.printf("angle: %.5f", value1.getX());
-            System.out.printf(" %.5f", value1.getY());
-            System.out.printf(" %.5f\t", value1.getZ());
-            System.out.printf("%.5f", value2.getX());
-            System.out.printf(" %.5f", value2.getY());
-            System.out.printf(" %.5f\n", value2.getZ());*/
-
-            System.out.println(Utils.quaternionToEulerAngles(Utils.eulerAnglesToQuaternion(new Point3D(0,-90,0)).multiply(copter.getAngle()).multiply(Utils.eulerAnglesToQuaternion(new Point3D(0,0,0)))));
-
-            //System.out.println(refPosition.add(refPosition.add(Utils.rotY(0).multiply(copter.getPosition()))));
-            //System.out.println(refPosition.add(refPosition.add(Utils.rotY(90).multiply(copter.getPosition()))));
-
-
-
-
-            //System.out.println(euler);
-
-            Point3D vector = new Point3D(errorRotationOther.getX(),0,errorRotationOther.getZ());
-            //Point3D acceleration = J.inverse().multiply(vector.subtract((copter.getAngleVelocity().cross(J.multiply(copter.getAngleVelocity())))).subtract(copter.getAngleVelocity().multiply(simulationEnvironment.getMomentFriction())));
-            //vector = acceleration.multiply(0.1).add(copter.getAngleVelocity().multiply(0.01));
-
-            double err1 = pid1.calculateControl(-copter.getPosition().getY(),100-refPosition.getY());
-            double err2 = pid2.calculateControl(-vector.getX(),0);
-            double err3 = pid3.calculateControl(-vector.getZ(),0);
-            double err4 = 0;//pid4.calculateControl(+vector.getY(),0);
+            //System.out.println(Math.toDegrees(anglePitch)+" "+pitch.get());
 
             m1.setSpeed(err1-err4+err2-err3);
             m2.setSpeed(err1+err4-err2-err3);
             m3.setSpeed(err1-err4-err2+err3);
             m4.setSpeed(err1+err4+err2+err3);
-
-            /*m1.setSpeed(err1);
-            m2.setSpeed(err1);
-            m3.setSpeed(err1);
-            m4.setSpeed(err1);*/
 
         });
         ///////////////////////// CONTROLLER END
@@ -196,16 +145,9 @@ public class MainFrame extends JFrame {
         });
 
         //обналяем и интегрируем силы коптера
-
         updater.addTask(copter::updateIntegration);
 
         //управление с клавиатуры
-
-        controlsGUI.bindAKey(KeyEvent.VK_Y, () -> {
-            pitch.updateAndGet(v -> (v + 0.0005));
-            m1.setForce(m1.getForce().add(new Point3D(0, 0,pitch.get())));
-        });
-
         controlsGUI.bindAKey(KeyEvent.VK_SHIFT, () -> {
             m1.setSpeed(m1.getThrust()-1.1f);
             m2.setSpeed(m2.getThrust()+1.1f);
@@ -252,9 +194,9 @@ public class MainFrame extends JFrame {
         // поворот камеры при зажатой кнопке M
         controlsGUI.bindAKey(KeyEvent.VK_M,
                 () -> camera.setPosition(copter.getPosition().multiply(-1).add(
-                new Point3D((20*Math.sin(Math.toRadians(camera.getRotation().getY()))*Math.cos(Math.toRadians(camera.getRotation().getX()))),
-                         (-20*Math.sin(Math.toRadians(camera.getRotation().getX()))),
-                         (-20*Math.cos(Math.toRadians(camera.getRotation().getY()))*Math.cos(Math.toRadians(camera.getRotation().getX())))))));
+                        new Point3D((20*Math.sin(Math.toRadians(camera.getRotation().getY()))*Math.cos(Math.toRadians(camera.getRotation().getX()))),
+                                (-20*Math.sin(Math.toRadians(camera.getRotation().getX()))),
+                                (-20*Math.cos(Math.toRadians(camera.getRotation().getY()))*Math.cos(Math.toRadians(camera.getRotation().getX())))))));
         // Cam rotation end
 
         //обнавляем позицию объектов коптера и пропеллеров
