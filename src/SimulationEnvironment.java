@@ -5,8 +5,8 @@ public class SimulationEnvironment {
     private final double momentFriction;
 
     public SimulationEnvironment() {
-        //gravityForce = new Point3D(0,9.81f, 0);
-        gravityForce = new Point3D(0,0,0);
+        gravityForce = new Point3D(0,9.81f, 0);
+        //gravityForce = new Point3D(0,0,0);
         deltaTime = 0.01;
         forceFriction = 0.5;
         momentFriction = 0.5;
