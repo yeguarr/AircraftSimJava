@@ -41,8 +41,8 @@ public class MainFrame extends JFrame {
         SimulationEnvironment simulationEnvironment = new SimulationEnvironment();
 
         //создаем пропеллеры
-        AircraftBase.Propeller m1 = new AircraftBase.Propeller(0.1,new Point3D(0,-0.5,0),new Point3D(0,1,0),false,10,"propellerM.obj", simulationEnvironment);
-        AircraftBase.Propeller m2 = new AircraftBase.Propeller(0.,new Point3D(-2,0.,0),new Point3D(0,0,-1),true,10,"propellerG.obj",simulationEnvironment);
+        AircraftBase.Propeller m1 = new AircraftBase.Propeller(0.5,new Point3D(0,-0.5,0),new Point3D(0,1,0),false,10,"propellerM.obj", simulationEnvironment);
+        AircraftBase.Propeller m2 = new AircraftBase.Propeller(0.01,new Point3D(-2,0.,0),new Point3D(0,0,-1),true,10,"propellerG.obj",simulationEnvironment);
 
         //создаем сам коптер
         Matrix.m4x4 J = new Matrix.m4x4(0.64,0 ,0, 0, 0, 0.64, 0, 0, 0,0, 1.2,0, 0, 0 ,0 ,1 );
@@ -75,10 +75,7 @@ public class MainFrame extends JFrame {
         PID pid1 = new PID(0.8,0.4,2, simulationEnvironment);
         PID pid2 = new PID(1,0.01,0, simulationEnvironment);
 
-
-        AtomicReference<Double> pitch = new AtomicReference<>(0.);
-
-        helicopter.setAngle(Utils.eulerAnglesToQuaternion(new Point3D(0,pitch.get() ,0)));
+        helicopter.setAngle(Utils.eulerAnglesToQuaternion(new Point3D(0,0,0)));
         Object3D lineArrowObject = new Object3D();
         viewer3D.addObject3D(lineArrowObject);
 
@@ -119,13 +116,6 @@ public class MainFrame extends JFrame {
         //обналяем и интегрируем силы коптера
 
         updater.addTask(helicopter::updateIntegration);
-
-        //управление с клавиатуры
-
-        controlsGUI.bindAKey(KeyEvent.VK_Y, () -> {
-            pitch.updateAndGet(v -> (v + 0.0005));
-            m1.setForce(m1.getForce().add(new Point3D(0, 0,pitch.get())));
-        });
 
         // поворот камеры при зажатой кнопке M
         controlsGUI.bindAKey(KeyEvent.VK_M,
