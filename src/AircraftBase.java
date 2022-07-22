@@ -23,7 +23,7 @@ public class AircraftBase {
 
     private Object3D copterObject;
 
-    public AircraftBase(double mass, double trustToMoment, Matrix.m4x4 inertia, SimulationEnvironment simulationEnvironment) {
+    public AircraftBase(double mass, double trustToMoment, Matrix.m4x4 inertia, String aircraftBase, SimulationEnvironment simulationEnvironment) {
         this.mass = mass;
         this.trustToMoment = trustToMoment;
         this.inertia = inertia;
@@ -36,7 +36,7 @@ public class AircraftBase {
         angle = new Quaternion(1,0,0,0);
         angleVelocity = new Point3D();
         torque = new Point3D();
-        copterObject = new ReaderOBJ("copter2.obj").getObject();
+        copterObject = new ReaderOBJ(aircraftBase).getObject();
         centre=new Point3D();
     }
 
@@ -157,6 +157,11 @@ public class AircraftBase {
 
     public void setAngle(Quaternion angle) {
         this.angle = angle;
+    }
+
+    public void updateThrust() {
+        for (Propeller propeller : getPropellers())
+            propeller.updateThrust();
     }
 
     public static class Propeller {
