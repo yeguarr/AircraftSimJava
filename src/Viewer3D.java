@@ -10,6 +10,9 @@ public class Viewer3D extends JComponent {
     private List<Shape3D> drawShapes;
     private List<Object3D> objects;
     private Camera camera;
+    private Font font;
+    private String text;
+
 
     public Viewer3D(ControlsGUI controlsGUI) {
         addMouseListener(controlsGUI);
@@ -18,6 +21,8 @@ public class Viewer3D extends JComponent {
         this.camera = controlsGUI.getCamera();
         this.objects = new LinkedList<>();
         this.drawShapes = new LinkedList<>();
+        this.font = new Font("Arial", Font.PLAIN, 16);
+        this.text = "";
     }
 
     void addObject3D(Object3D object3D) {
@@ -42,9 +47,12 @@ public class Viewer3D extends JComponent {
 
         for (Shape3D shape : drawShapes) {
             shape.drawOnComponent(g2d);
-            /*g2d.setPaint(shape.getColor());
-            g2d.fillPolygon(shape.getPolygon());*/
         }
+        g2d.setPaint(Color.WHITE);
+        g2d.setFont(font);
+        int textY = 0;
+        for (String line : text.split("\n"))
+            g2d.drawString(line, 0, textY += g.getFontMetrics().getHeight());
     }
 
     public void updateComponent() {
@@ -72,5 +80,14 @@ public class Viewer3D extends JComponent {
 
         Collections.sort(drawShapes);
         repaint();
+    }
+
+    @Override
+    public void setFont(Font font) {
+        this.font = font;
+    }
+
+    public void setText(String text) {
+        this.text = text;
     }
 }

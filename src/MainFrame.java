@@ -17,12 +17,6 @@ public class MainFrame extends JFrame {
         controlsGUI = new ControlsGUI(camera);
         viewer3D = new Viewer3D(controlsGUI);
         setup();
-        addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent windowEvent) {
-                updater.stop();
-            }
-        });
     }
 
     public static void main(String[] args) {
@@ -73,7 +67,7 @@ public class MainFrame extends JFrame {
 
         helicopter.setAngle(Utils.eulerAnglesToQuaternion(new Point3D(0,0,0)));
 
-        Point3D position = new Point3D(0,10,10);
+        Point3D position = new Point3D(10,10,0);
         double neededAngle = 0;
 
         // Контроллер для вертолета
@@ -110,8 +104,14 @@ public class MainFrame extends JFrame {
         //обнавляем позицию объектов коптера и пропеллеров
         updater.addTask(helicopter::updateObjectAndPropellers);
 
-        //выводим FPS
-        //updater.addTask(() -> textArea.setText(String.valueOf(updater.getFrames())));
+        //выводим FPS и ошибка.
+        updater.addTask(()-> {
+            Point3D error = position.subtract(helicopter.getPosition().scale(1,-1,1));
+            String x = String.format("%.2f", error.getX());
+            String y = String.format("%.2f", error.getY());
+            String z = String.format("%.2f", error.getZ());
+            viewer3D.setText("FPS: "+(updater.getFrames())+"\nError: "+x+" "+y+" "+z);
+        });
 
         //обнавляем отрисовку объектов
         updater.addTask(viewer3D::updateComponent);
@@ -122,8 +122,13 @@ public class MainFrame extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setBackground(Color.BLACK);
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent windowEvent) {
+                updater.stop();
+            }
+        });
 
-        //add(textArea, BorderLayout.PAGE_START);
         add(viewer3D, BorderLayout.CENTER);
 
         viewer3D.setFocusable(true);
