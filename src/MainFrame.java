@@ -1,16 +1,14 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
-import java.awt.geom.Point2D;
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicReference;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class MainFrame extends JFrame {
     Updater updater;
     Camera camera;
     ControlsGUI controlsGUI;
     Viewer3D viewer3D;
-    JTextArea textArea;
 
     public MainFrame() {
         super("3D Viewer");
@@ -18,8 +16,13 @@ public class MainFrame extends JFrame {
         camera = new Camera();
         controlsGUI = new ControlsGUI(camera);
         viewer3D = new Viewer3D(controlsGUI);
-        textArea = new JTextArea("Hello World!");
         setup();
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent windowEvent) {
+                updater.stop();
+            }
+        });
     }
 
     public static void main(String[] args) {
@@ -58,7 +61,7 @@ public class MainFrame extends JFrame {
         Object3D OBJRef = new ReaderOBJ("arrow.obj").getObject();
         viewer3D.addObject3D(OBJRef);
 
-        //добовляем следящую за коптером линию
+        //добовляем следящую за вертолетом линию
         LineTracer lineTracer = new LineTracer(500,4,helicopter.getPosition());
         updater.addTask(()->lineTracer.updatePosition(helicopter.getPosition()));
         viewer3D.addObject3D(lineTracer.getLinesObject());
@@ -66,20 +69,20 @@ public class MainFrame extends JFrame {
         //to do настроить пиды
         PID pid1 = new PID(0.8,0.4,2, simulationEnvironment);
         PID pid2 = new PID(1,0.01,0, simulationEnvironment);
-        QuatenionPID quatenionPID= new QuatenionPID();
+        QuaternionPID quaternionPID = new QuaternionPID(1,0,0, simulationEnvironment);
 
         helicopter.setAngle(Utils.eulerAnglesToQuaternion(new Point3D(0,0,0)));
 
         Point3D position = new Point3D(0,10,10);
-        double neededAngle = 100;
+        double neededAngle = 0;
 
-        // Контроллеп для вктолета.
-        HelicopterController helicopterController = new HelicopterController(position,neededAngle,pid1,pid2,quatenionPID, helicopter);
+        // Контроллер для вертолета
+        HelicopterController helicopterController = new HelicopterController(position,neededAngle,pid1,pid2,quaternionPID);
 
         updater.addTask( () -> {
-            mainRotor.setSpeed(helicopterController.mainRotorSpeed());
-            tailRotor.setSpeed(helicopterController.tailRotorSpeed());
-            mainRotor.setForce(helicopterController.getForceAngle());
+            mainRotor.setSpeed(helicopterController.mainRotorSpeed(helicopter.getPosition()));
+            tailRotor.setSpeed(helicopterController.tailRotorSpeed(helicopter.getAngle()));
+            mainRotor.setForce(helicopterController.getForceAngle(helicopter.getPosition(),helicopter.getAngle()));
 
             OBJRef.setPosition(position.scale(1,-1,1));
             OBJRef.setRotation(Utils.rotate(new Point3D(0,neededAngle,0)));
@@ -108,7 +111,7 @@ public class MainFrame extends JFrame {
         updater.addTask(helicopter::updateObjectAndPropellers);
 
         //выводим FPS
-        updater.addTask(() -> textArea.setText(String.valueOf(updater.getFrames())));
+        //updater.addTask(() -> textArea.setText(String.valueOf(updater.getFrames())));
 
         //обнавляем отрисовку объектов
         updater.addTask(viewer3D::updateComponent);
@@ -119,11 +122,6 @@ public class MainFrame extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setBackground(Color.BLACK);
-
-        textArea.setEditable(false);
-        textArea.setBackground(Color.BLACK);
-        textArea.setFont( new Font(Font.DIALOG, Font.PLAIN, 30 ));
-        textArea.setForeground(Color.WHITE);
 
         //add(textArea, BorderLayout.PAGE_START);
         add(viewer3D, BorderLayout.CENTER);

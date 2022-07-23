@@ -3,30 +3,28 @@ public class HelicopterController {
     private double neededAngle;
     private PID pidPosition;
     private PID pidSupportAngle;
-    private QuatenionPID forceAngle;
-    private AircraftBase helicopter;
+    private QuaternionPID forceAngle;
 
-    public HelicopterController(Point3D neededPosition, double neededAngle, PID pidPosition, PID pidSupportAngle, QuatenionPID forceAngle, AircraftBase helicopter) {
+    public HelicopterController(Point3D neededPosition, double neededAngle, PID pidPosition, PID pidSupportAngle, QuaternionPID forceAngle) {
         this.neededPosition = neededPosition;
         this.neededAngle = neededAngle;
         this.pidPosition = pidPosition;
         this.pidSupportAngle = pidSupportAngle;
         this.forceAngle = forceAngle;
-        this.helicopter = helicopter;
     }
 
-    public double mainRotorSpeed() {
-        return pidPosition.calculateControl(-helicopter.getPosition().getY(),neededPosition.getY());
+    public double mainRotorSpeed(Point3D helicopterPosition) {
+        return pidPosition.calculateControl(-helicopterPosition.getY(),neededPosition.getY());
     }
 
-    public double tailRotorSpeed() {
-        return pidSupportAngle.calculateControl(Math.acos(helicopter.getAngle().getW())*2, Math.toRadians(neededAngle));
+    public double tailRotorSpeed(Quaternion helicopterAngle) {
+        return pidSupportAngle.calculateControl(Math.acos(helicopterAngle.getW())*2, Math.toRadians(neededAngle));
     }
 
-    public Point3D getForceAngle() {
-        double errX = neededPosition.getX()-helicopter.getPosition().getX();
-        double errY = -(neededPosition.getY()-helicopter.getPosition().getY());
-        double errZ = neededPosition.getZ()-helicopter.getPosition().getZ();
+    public Point3D getForceAngle(Point3D helicopterPosition,Quaternion helicopterAngle) {
+        double errX = neededPosition.getX()-helicopterPosition.getX();
+        double errY = -(neededPosition.getY()-helicopterPosition.getY());
+        double errZ = neededPosition.getZ()-helicopterPosition.getZ();
 
         Point3D errVec = Utils.rotY(-neededAngle).multiply(new Point3D(errX,errY,errZ));
 
@@ -34,7 +32,9 @@ public class HelicopterController {
         double angleZ = Math.cos(Math.atan2(errVec.getY(),errVec.getZ()));
 
         //to do пид для кватернонов.
-        Quaternion q = new Quaternion(Utils.eulerAnglesToQuaternion(new Point3D(-angleZ,0,angleX))).multiply(helicopter.getAngle().conjugate());
+        Quaternion q = forceAngle.calculateControl(Utils.eulerAnglesToQuaternion(new Point3D(-angleZ,0,angleX)),helicopterAngle);
+        //Quaternion q = new Quaternion(Utils.eulerAnglesToQuaternion(new Point3D(-angleZ,0,angleX))).multiply(helicopter.getAngle().conjugate());
+
         return Utils.quaternionRotation(q).multiply(new Point3D(0,1,0));
 
     }
