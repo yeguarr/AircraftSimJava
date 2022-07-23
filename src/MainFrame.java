@@ -3,6 +3,7 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.Random;
 
 public class MainFrame extends JFrame {
     Updater updater;
@@ -34,7 +35,7 @@ public class MainFrame extends JFrame {
 
         //создаем вертолет (хз откуда брать параметры момента инерции)
         Matrix.m4x4 J = new Matrix.m4x4(0.64,0 ,0, 0, 0, 0.64, 0, 0, 0,0, 1.2,0, 0, 0 ,0 ,1 );
-        AircraftBase helicopter = new AircraftBase(3,0.001, J,"HelicopterBase.obj", simulationEnvironment);
+        AircraftBase helicopter = new AircraftBase(3,0.002, J,"HelicopterBase.obj", simulationEnvironment);
 
         //создаем пропеллеры
         AircraftBase.Propeller mainRotor = new AircraftBase.Propeller(0.5,new Point3D(0,-0.8,0),new Point3D(0,1,0),false,10,"MainRotor.obj", simulationEnvironment);
@@ -63,7 +64,7 @@ public class MainFrame extends JFrame {
         //to do настроить пиды
         PID pid1 = new PID(0.8,0.4,2, simulationEnvironment);
         PID pid2 = new PID(1,0.01,0.1, simulationEnvironment);
-        QuaternionPID quaternionPID = new QuaternionPID(1,0,0, simulationEnvironment);
+        QuaternionPID quaternionPID = new QuaternionPID(1,0,1.0, simulationEnvironment);
 
         helicopter.setAngle(Utils.eulerAnglesToQuaternion(new Point3D(0,0,0)));
 
@@ -73,10 +74,13 @@ public class MainFrame extends JFrame {
         // Контроллер для вертолета
         HelicopterController helicopterController = new HelicopterController(position,neededAngle,pid1,pid2,quaternionPID);
 
+        Random normalDistribution  = new Random();
+
         updater.addTask( () -> {
-            mainRotor.setSpeed(helicopterController.mainRotorSpeed(helicopter.getPosition()));
+            Point3D rand = new Point3D(normalDistribution.nextGaussian()*0.2,normalDistribution.nextGaussian()*0.2,normalDistribution.nextGaussian()*0.2);
+            mainRotor.setSpeed(helicopterController.mainRotorSpeed(helicopter.getPosition().add(rand)));
             tailRotor.setSpeed(helicopterController.tailRotorSpeed(helicopter.getAngle()));
-            mainRotor.setForce(helicopterController.getForceAngle(helicopter.getPosition(),helicopter.getAngle()));
+            mainRotor.setForce(helicopterController.getForceAngle(helicopter.getPosition().add(rand),helicopter.getAngle()));
 
             OBJRef.setPosition(position.scale(1,-1,1));
             OBJRef.setRotation(Utils.rotate(new Point3D(0,neededAngle,0)));

@@ -65,7 +65,8 @@ public class Quaternion {
     }
 
     public Quaternion normalise() {
-        return new Quaternion(this).multiply(1/normal());
+        double norm = normal();
+        return norm == 0? new Quaternion() : new Quaternion(this).multiply(1/norm);
     }
 
     public Quaternion conjugate() {
@@ -76,12 +77,25 @@ public class Quaternion {
         return (this.multiply(new Quaternion(0,point)).multiply(this.conjugate())).getVector();
     }
 
-    @Deprecated
-    public Quaternion power(double power) { /// очень сино подозреваю, что не правильно сделал...
-        double phi = Math.acos(getW()/normal());
-        Point3D n_ = getVector().normalise().multiply(1/ Math.sin(phi));
-        return new Quaternion( Math.cos(power*phi),n_.multiply( Math.sin(power*phi))).multiply( Math.pow(normal(),power));
+    public Quaternion exp() {
+        Point3D vec = getVector();
+        return new Quaternion(Math.cos(vec.length()), vec.normalise().multiply(Math.sin(vec.length()))).multiply(Math.exp(getW()));
     }
+
+    public Quaternion ln() {
+        Point3D vec = getVector();
+
+        return new Quaternion(Math.log(this.normal()), vec.normalise().multiply(this.arg()));
+    }
+
+    public Quaternion power(double power) { /// очень сино подозреваю, что не правильно сделал...
+        return new Quaternion(this.ln().multiply(power)).exp();
+    }
+
+    public double arg() {
+        return Math.acos(getW()/normal());
+    }
+
 
     @Override
     public String toString() {

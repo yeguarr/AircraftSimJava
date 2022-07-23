@@ -73,7 +73,7 @@ public class Point3D {
 
     public Point3D normalise() {
         double r = length();
-        return new Point3D(getX()/r,getY()/r,getZ()/r);
+        return r==0 ? new Point3D() : new Point3D(getX()/r,getY()/r,getZ()/r);
     }
 
     public double length() {

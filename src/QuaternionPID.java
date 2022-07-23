@@ -17,12 +17,12 @@ public class QuaternionPID {
 
     public Quaternion calculateControl(Quaternion current, Quaternion destination) {
         Quaternion error = current.multiply(destination.conjugate());
-        sum = sum.multiply(error.multiply(simulationEnvironment.getDeltaTime()));
-        Quaternion alpha = error.multiply(p);
-        Quaternion betta = sum.multiply(i);
-        Quaternion gamma = (error.multiply(lastState.conjugate())).multiply(d/simulationEnvironment.getDeltaTime());
+        sum = sum.multiply(error.power(simulationEnvironment.getDeltaTime()));
+        Quaternion alpha = error.power(p);
+        Quaternion betta = sum.power(i);
+        Quaternion gamma = (error.multiply(lastState.conjugate())).power(d/simulationEnvironment.getDeltaTime());
         lastState =  new Quaternion(error);
 
-        return alpha;//.multiply(betta).multiply(gamma);
+        return alpha.multiply(betta).multiply(gamma);
     }
 }
