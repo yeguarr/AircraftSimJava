@@ -34,11 +34,11 @@ public class MainFrame extends JFrame {
 
         //создаем вертолет (хз откуда брать параметры момента инерции)
         Matrix.m4x4 J = new Matrix.m4x4(0.64,0 ,0, 0, 0, 0.64, 0, 0, 0,0, 1.2,0, 0, 0 ,0 ,1 );
-        AircraftBase helicopter = new AircraftBase(3,0.001, J,"copter2.obj", simulationEnvironment);
+        AircraftBase helicopter = new AircraftBase(3,0.001, J,"HelicopterBase.obj", simulationEnvironment);
 
         //создаем пропеллеры
-        AircraftBase.Propeller mainRotor = new AircraftBase.Propeller(0.5,new Point3D(0,-0.5,0),new Point3D(0,1,0),false,10,"propellerM.obj", simulationEnvironment);
-        AircraftBase.Propeller tailRotor = new AircraftBase.Propeller(0.01,new Point3D(-2,0.,0),new Point3D(0,0,-1),true,10,"propellerG.obj",simulationEnvironment);
+        AircraftBase.Propeller mainRotor = new AircraftBase.Propeller(0.5,new Point3D(0,-0.8,0),new Point3D(0,1,0),false,10,"MainRotor.obj", simulationEnvironment);
+        AircraftBase.Propeller tailRotor = new AircraftBase.Propeller(0.01,new Point3D(-3.54,-0.6,0),new Point3D(0,0,-1),true,10,"TailRotor.obj",simulationEnvironment);
 
         //добавляем пропеллеры на коптер
         helicopter.addPropeller(mainRotor);
@@ -47,7 +47,7 @@ public class MainFrame extends JFrame {
         //добавляем внртолёт и пропеллеры в пространство
         viewer3D.addObject3D(helicopter.getCopterObject());
         for (int i = 0; i < helicopter.getPropellers().size(); i++) {
-            viewer3D.addObject3D(helicopter.getPropellers().get(i).getObjectStick());
+            //viewer3D.addObject3D(helicopter.getPropellers().get(i).getObjectStick());
             viewer3D.addObject3D(helicopter.getPropellers().get(i).getPropeller3D());
         }
 
@@ -62,7 +62,7 @@ public class MainFrame extends JFrame {
 
         //to do настроить пиды
         PID pid1 = new PID(0.8,0.4,2, simulationEnvironment);
-        PID pid2 = new PID(1,0.01,0, simulationEnvironment);
+        PID pid2 = new PID(1,0.01,0.1, simulationEnvironment);
         QuaternionPID quaternionPID = new QuaternionPID(1,0,0, simulationEnvironment);
 
         helicopter.setAngle(Utils.eulerAnglesToQuaternion(new Point3D(0,0,0)));
